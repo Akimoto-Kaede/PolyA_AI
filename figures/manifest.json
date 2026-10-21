@@ -1,0 +1,274 @@
+[
+  {
+    "file": "figures/ai-cell-018-figure-01.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 18,
+    "image_sha256": "b99cc037678a9241eaa12ba0b30e638cdbcfabafdf6ad8db332e7724f70480c6",
+    "code_sha256": "4f22ad27e1e7589d484ebd838ab5d41166cbff52ce8f0be51e6f1fdaa65d16d9",
+    "code": "stat = pd.DataFrame(\n    None, columns=[\"group\", \"rep\", \"r2\", \"loss\", \"mae\", \"custom_metric\"]\n)\nres = pd.DataFrame(None, columns=[\"group\", \"id\", \"y\", \"y_pred\"])\nkf = KFold(n_splits=10, shuffle=True, random_state=57)\nfor i, (train_idx, test_idx) in enumerate(kf.split(x_ary, y_df[\"y\"])):\n    best_r2 = 0\n    for j in range(5):\n        x_train = x_ary[train_idx]\n        x_test = x_ary[test_idx]\n        y_train = y_df.loc[train_idx, \"y\"].to_numpy()\n        y_test = y_df.loc[test_idx, \"y\"].to_numpy()\n        history, model = train_model(\n            x_train, y_train, x_test, y_test, session_id=\"XL_oo_pp\"\n        )\n        model.save(\n            output_dir\n            + \"/models/\"\n            + \"XL_oo_pp\"\n            + \"_best_model_CV_group_\"\n            + str(i + 1)\n            + \"_rep_\"\n            + str(j + 1)\n            + \".h5\"\n        )\n        scores = model.evaluate(x_test, y_test, batch_size=50, verbose=1)\n        y_pred = model.predict(x_test, verbose=1).ravel()\n        r_value = stats.linregress(y_test, y_pred).rvalue\n        if r_value**2 > best_r2:\n            best_r2 = r_value**2\n            best_model = model\n        del model\n        keras.backend.clear_session()\n        stat.loc[len(stat)] = [i + 1, j + 1, round(r_value**2, 3)] + list(scores)\n        loss_plot(\n            train=history.history[\"loss\"],\n            test=history.history[\"val_loss\"],\n            fn=output_dir\n            + \"/loss_plot/\"\n            + \"XL_oo_pp\"\n            + \"_loss_over_epoch_line_plot_CV_group_\"\n            + str(i + 1)\n            + \"_rep_\"\n            + str(j + 1)\n            + \".png\",\n        )\n        loss_plot(\n            train=history.history[\"custom_metric\"],\n            test=history.history[\"val_custom_metric\"],\n            fn=output_dir\n            + \"/loss_plot/\"\n            + \"XL_oo_pp\"\n            + \"_metric_over_epoch_line_plot_CV_group_\"\n            + str(i + 1)\n            + \"_rep_\"\n            + str(j + 1)\n            + \".png\",\n        )\n    best_model.save(\n        output_dir\n        + \"/models/\"\n        + \"XL_oo_pp\"\n        + \"_best_model_CV_group_\"\n        + str(i + 1)\n        + \".h5\"\n    )\n    y_pred = best_model.predict(x_test, verbose=1).ravel()\n    for k in range(len(y_test)):\n        res.loc[len(res)] = list(\n            map(\n                str,\n                [i + 1, y_df.loc[test_idx][\"id\"].to_numpy()[k], y_test[k], y_pred[k]],\n            )\n        )\nstat.to_csv(\n    output_dir + \"/prediction/\" + \"XL_oo_pp\" + \"_train_test_CV_stats.csv\", index=False\n)\nres.to_csv(\n    output_dir + \"/prediction/\" + \"XL_oo_pp\" + \"_train_test_CV_prediction_results.csv\",\n    index=False,\n)"
+  },
+  {
+    "file": "figures/ai-cell-019-figure-02.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 19,
+    "image_sha256": "4148b8e965fd4279fc0511050ddb13bdaabf0eb05f15a0ee066a41175d19580a",
+    "code_sha256": "4ed05a30e81a5a6c3ecb8c4fe00331431914c4908d7ff698f408497facc1cebf",
+    "code": "res = pd.read_csv(\n    output_dir + \"/prediction/\" + \"XL_oo_pp\" + \"_train_test_CV_prediction_results.csv\"\n)\nscatter_plot(\n    res[\"y\"],\n    res[\"y_pred\"],\n    fn=output_dir + \"/scatter_plot/\" + \"XL_oo_pp\" + \"_final_scatter_plot.png\",\n)"
+  },
+  {
+    "file": "figures/ai-cell-020-figure-03.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 20,
+    "image_sha256": "8c8c84990d24959be64559766f0d46ac992944b4c2691b8e1fe28f6994a958ab",
+    "code_sha256": "8ad0b6fd9e02f14f4723bb124fc9c0a5c3f10587688cbad7b418b93c85228ddf",
+    "code": "res = pd.read_csv(\n    output_dir + \"/prediction/\" + \"XL_oo_pp\" + \"_train_test_CV_prediction_results.csv\"\n)\ndiff = np.array(res[\"y_pred\"] - res[\"y\"])\nprint(len(diff))\nplt.hist(\n    diff,\n    bins=np.arange(round(min(diff)) - 1, round(max(diff)) + 1, 1),\n    histtype=\"step\",\n    density=False,\n)\nplt.xlabel(\"predicted - measured\")\nplt.ylabel(\"data count\")"
+  },
+  {
+    "file": "figures/ai-cell-042-figure-04.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 42,
+    "image_sha256": "dd1b1ebcf36a7bf20b5fc32f734bf08b5ec43a9cb9e22655a19c5af83825b742",
+    "code_sha256": "190f8541cc1c06fb728cdbb28f6bc07e2496decfea6e76bb6669fe5dbc0ede3f",
+    "code": "res = pd.read_csv(\n    \"/public/home/zhangyt/project/ai/polya_med/prediction/median_train_test_CV_prediction_results.csv\"\n)\nscatter_plot(\n    res[\"y\"],\n    res[\"y_pred\"],\n    fn=output_dir + \"/scatter_plot/\" + \"XL_oo_pp\" + \"_final_scatter_plot.png\",\n)"
+  },
+  {
+    "file": "figures/ai-cell-059-figure-05.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 59,
+    "image_sha256": "8a541f7e5e9289a850b8a6a637bec6ebfd5b336d556820ef1fc723251f773afe",
+    "code_sha256": "46ec3834dcbe0aefe203fb416f82e0f60b3855895ec68c7c5907bd93ea92b375",
+    "code": "fig, ax = plt.subplots()\nim = ax.imshow(mat, cmap=\"RdYlBu_r\")\nax.set_xticks(range(2), labels=[\"long\", \"short\"])\nax.set_yticks(range(2), labels=[\"long\", \"short\"])\nfor i in range(2):\n    for j in range(2):\n        text = ax.text(j, i, mat[i, j], ha=\"center\", va=\"center\", color=\"w\")\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-063-figure-06.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 63,
+    "image_sha256": "c11f83e20c023159aa4c011fd7863b05aa827c585531fe6df5d43008d479ba8c",
+    "code_sha256": "683a8ee821005be6b903107fbaa859e38109e95a463fd363ea1f631d3d5a87bb",
+    "code": "fig, ax = plt.subplots()\nx = data_df[\"polya_median\"]\ny = iqr_ls\nvalues = np.vstack([x, y])\nkernel = stats.gaussian_kde(values)(values)\nax.scatter(x, y, marker=\".\", c=kernel, cmap=\"RdYlBu_r\")\nax.set_xlabel(\"median\")\nax.set_ylabel(\"IQR\")\nmin_val = min(min(x), min(y))\nmax_val = max(max(x), max(y))\nax.plot([min_val, max_val], [min_val, max_val], \"--\", color=\"grey\", linewidth=1)\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-068-figure-07.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 68,
+    "image_sha256": "6ef0ebebbc57dbe6c223c23c2ac1e622371c676f2b8abe3f07ded727a60932ba",
+    "code_sha256": "06dc39f158988ed6c601d8ddeaef5d94df04ba50d159828b3a10adc441b78810",
+    "code": "sub = lengths\nprint(len(sub))\nfig, ax = plt.subplots()\nax.hist(sub, bins=100, density=False, histtype=\"step\")\nax.set_xlabel(\"polya_length\")\nax.set_ylabel(\"count\")"
+  },
+  {
+    "file": "figures/ai-cell-082-figure-08.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 82,
+    "image_sha256": "c40b5e679dbc2dbca8cdd707d40eb40e7deb32f81028f01574b51e9a3c16ab19",
+    "code_sha256": "5c5d72da4c44adb9384170a5a71bff77ca92933265f1e98d29205c3966635522",
+    "code": "from sklearn.manifold import MDS\n\nmd = MDS(dissimilarity=\"precomputed\")\nD = scipy.spatial.distance.squareform(\n    scipy.spatial.distance.pdist(Q, metric=\"euclidean\")\n)\npos = md.fit_transform(D)\nplt.scatter(pos[:, 0], pos[:, 1], c=t, cmap=\"coolwarm\")"
+  },
+  {
+    "file": "figures/ai-cell-084-figure-09.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 84,
+    "image_sha256": "3e342309a08214b58bb3bdef4daf762e2a14351b15f4244b8fcbbb21fe159cb9",
+    "code_sha256": "10239afa2ab2cee8d22deee183db09f839884f96ced112950307d920b1854a45",
+    "code": "fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))\nax1.stairs(eval(dist_df.loc[2132, \"polya_ratio\"]), np.arange(10, 335, 5))\nax1.set(title=\"measured\", xlabel=\"polya_length\", ylabel=\"ratio\", ylim=(0, 0.1))\nax2.stairs(reconstruct_hist(t[2132]), np.arange(10, 335, 5))\nax2.set(title=\"rebuilt\", xlabel=\"polya_length\", ylabel=\"ratio\", ylim=(0, 0.1))"
+  },
+  {
+    "file": "figures/ai-cell-085-figure-10.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 85,
+    "image_sha256": "6f168819fbc4b055d2ba6c9d63c81cd1f28e72e87693436e15eb19033e980153",
+    "code_sha256": "f0dfa082023e9a2686d5e02eac9292ea808206c57e80fa31542a9ac1d6b11e69",
+    "code": "fig, ax = plt.subplots()\nax.stairs(eval(dist_df.loc[132, \"polya_ratio\"]), np.arange(10, 335, 5))\nax.set(title=\"measured\", xlabel=\"polya_length\", ylabel=\"ratio\", ylim=(0, 0.1))\nax.stairs(reconstruct_hist(t[132]), np.arange(10, 335, 5))"
+  },
+  {
+    "file": "figures/ai-cell-093-figure-11.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 93,
+    "image_sha256": "c31d7ae0dc58b662cea40e294e6bc1c37485a5573f58af02e802a1edb89158c6",
+    "code_sha256": "de230c957f4b54582afde3be5d612c799a4063b9212b52aa87cb21b3934c90f8",
+    "code": "fig, ax = plt.subplots()\nax.stairs(eval(filtered_df.loc[1232, \"polya_ratio\"]), np.arange(10, 335, 5))\nax.set(xlabel=\"polya_length\", ylabel=\"ratio\", ylim=(0, 0.1))\nax.stairs(model.reconstruct(emb[1232])[0], np.arange(10, 335, 5))"
+  },
+  {
+    "file": "figures/ai-cell-094-figure-12.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 94,
+    "image_sha256": "64a581abeb9a5147003575fda0010f4e8e203964e2591a71920b0f079648be9d",
+    "code_sha256": "e97610a3b490d2f7f8682ec7bafd784bbeb619ce98868c16eddfe9a0f705a4a3",
+    "code": "fig, ax = plt.subplots()\nax.stairs(eval(filtered_df.loc[732, \"polya_ratio\"]), np.arange(10, 335, 5))\nax.set(xlabel=\"polya_length\", ylabel=\"ratio\", ylim=(0, 0.1))\nax.stairs(model.reconstruct(emb[732])[0], np.arange(10, 335, 5))"
+  },
+  {
+    "file": "figures/ai-cell-101-figure-13.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 101,
+    "image_sha256": "3eca8748ae3214a66390ec86f54696fc28df699d650392639b238d82e76a5b71",
+    "code_sha256": "949490b477737ee2575ffd5943292898e2b881b200afd69b51987e1b7eb829e9",
+    "code": "from scipy.stats import pearsonr\n\ncorr = np.zeros((2, L), dtype=\"float32\")\n\nfor l in range(L):\n    corr[0, l] = pearsonr(Z[:, 0], X[:, l])[0]\n    corr[1, l] = pearsonr(Z[:, 1], X[:, l])[0]\n\nbin_edges = np.arange(10, 330, 5)\ntick_pos = np.arange(0, 64, 8)\ntick_labels = bin_edges[tick_pos]\n\nplt.figure(figsize=(12, 2.5))\nim = plt.imshow(\n    corr, cmap=\"coolwarm\", aspect=\"auto\", vmin=-1, vmax=1, interpolation=\"nearest\"\n)\n\nplt.yticks([0, 1], [\"z1\", \"z2\"], fontsize=12)\nplt.xticks(tick_pos, tick_labels, fontsize=10)\nplt.xlabel(\"poly(A) length (nt)\", fontsize=12)\nplt.colorbar(im, label=\"Pearson r\", shrink=0.8)\nplt.title(\"Correlation heat-map: latent coordinates vs tail-length bins\", pad=10)\nplt.tight_layout()"
+  },
+  {
+    "file": "figures/ai-cell-102-figure-14.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 102,
+    "image_sha256": "0a0ccb3e8257b225902f74d17812fb14c204f8b33ac7a981109478612b3287b8",
+    "code_sha256": "18760cbfbef09442f87c27a218e1115b1d74666968db7861907bed6c70b45c80",
+    "code": "if \"polya_median\" in embed_df.columns:\n    color = embed_df[\"polya_median\"].values.astype(\"float32\")\n    c_label = \"poly(A) median (nt)\"\nelse:\n    # compute expectation = Σ bin_center * ratio\n    bin_centers = np.arange(10, 10 + 5 * 64, 5)\n    ratios = np.vstack(embed_df[\"polya_ratio\"].apply(json.loads)).astype(\"float32\")\n    color = (ratios * bin_centers).sum(axis=1)\n    c_label = \"median poly(A) length (nt)\"\n\n# -- scatter plot --\nplt.figure(figsize=(6, 5))\nsc = plt.scatter(Z[:, 0], Z[:, 1], c=color, cmap=\"viridis\", s=20, alpha=0.8)\nplt.colorbar(sc, label=c_label)\nplt.xlabel(\"latent z1\")\nplt.ylabel(\"latent z2\")\nplt.title(\"2-D latent map of poly(A) tail profiles\")\nplt.tight_layout()"
+  },
+  {
+    "file": "figures/ai-cell-103-figure-15.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 103,
+    "image_sha256": "5468bcefb293cd7e0be72788a3aa7818abff731178447e1bcbbf723598b9faa1",
+    "code_sha256": "77bcbed7829e6fb7631bb5cee2f69944549eaa4bdd35a5677ef4149108e2893a",
+    "code": "from sklearn.linear_model import LinearRegression\nfrom scipy.stats import pearsonr\nimport json\nimport random\nimport ot\n\nassert {\"polya_ratio\", \"embed_z1\", \"embed_z2\"}.issubset(\n    embed_df.columns\n), \"embed_df must contain polya_ratio, embed_z1, embed_z2\"\n\n# 1) latent coords & histograms\nZ = embed_df[[\"embed_z1\", \"embed_z2\"]].values.astype(\"float32\")\nH = np.vstack(embed_df[\"polya_ratio\"].apply(json.loads)).astype(\"float32\")\nbin_centers = np.arange(12.5, 12.5 + 5 * 64, 5, dtype=\"float32\")\n\n# 2) random pair sampling\nN = len(embed_df)\nM = min(6000, N * (N - 1) // 4)\npairs = random.sample([(i, j) for i in range(N) for j in range(i + 1, N)], M)\n\nlatent_d = np.empty(M, dtype=\"float32\")\nw2_d = np.empty(M, dtype=\"float32\")\n\nfor k, (i, j) in enumerate(pairs):\n    latent_d[k] = np.linalg.norm(Z[i] - Z[j])\n    w2_d[k] = np.sqrt(ot.wasserstein_1d(bin_centers, bin_centers, H[i], H[j], p=2))\n\n# 3) linear regression\nx = latent_d.reshape(-1, 1)\ny = w2_d\nlr = LinearRegression().fit(x, y)\ncoef, intercept = lr.coef_[0], lr.intercept_\nxs = np.linspace(0, x.max(), 200, dtype=\"float32\")[:, None]\nys = lr.predict(xs)\nr, _ = pearsonr(latent_d, w2_d)\nr2 = r**2\n\n# 4) plot\nplt.figure(figsize=(8, 6))\nplt.scatter(x, y, s=10, c=\"#f6b26b\", alpha=0.35, marker=\"x\", label=\"pairs\")\nplt.plot(\n    xs,\n    ys,\n    color=\"red\",\n    lw=2.5,\n    label=f\"fit  y = {coef:.3f}·x + {intercept:.3f}\\nPearson r² = {r2:.3f}\",\n)\nplt.xlabel(r\"latent $|\\Delta s|$\", fontsize=12)\nplt.ylabel(r\"$W_2$\", fontsize=12)\nplt.title(\"Distance linearization\", fontsize=14, pad=12)\nplt.legend(frameon=False)\nplt.tight_layout()\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-108-figure-16.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 108,
+    "image_sha256": "caa264f52ad4d01303389bb24378ebfd5cf3ab8b29a5f6795b783aaf82d5dd63",
+    "code_sha256": "45a5ece868c856988c49cd9a21b09a809d0e1859d64c5a6d645a2907f6121382",
+    "code": "x = np.asarray(eval(wae2d_df.loc[5564, \"hist_true\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(wae2d_df.loc[5564, \"hist_pred\"]), dtype=\"float32\")\nedges = np.arange(10, 335, 5, dtype=\"float32\")\ncenters = edges[:-1] + 2.5\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"rebuilt\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\", ylim=(0, 0.10))\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-109-figure-17.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 109,
+    "image_sha256": "db0f202c934a907f3f69d174881d5cc275461e00af3631e778f4b4ab956dbef9",
+    "code_sha256": "14811f5de0b97feb7052b81f62bce44e18db249f889afbfc2dd19cd06de45a19",
+    "code": "x = np.asarray(eval(embed_df.loc[4070, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = model.reconstruct(z_mean.loc[4070].to_numpy())[0].astype(\"float32\")\nedges = np.arange(10, 335, 5, dtype=\"float32\")\ncenters = edges[:-1] + 2.5\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"rebuilt\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\", ylim=(0, 0.10))\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-110-figure-18.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 110,
+    "image_sha256": "6237c416f96828db8e764af426a04b1ed52a57944179afecdb212398c98c6499",
+    "code_sha256": "6f4d6ca57803cff446d010992e7e181e017a8d8692f145ebd5a9ea395b6ca6dc",
+    "code": "import numpy as np\nimport matplotlib.pyplot as plt\nfrom scipy.stats import wasserstein_distance\n\np = np.array(\n    [\n        0.04040403291583061,\n        0.0471380352973938,\n        0.04040403291583061,\n        0.020202020183205605,\n        0.043771032243967056,\n        0.04040403291583061,\n        0.030303025618195534,\n        0.030303025618195534,\n        0.04040403291583061,\n        0.02693602256476879,\n        0.02693602256476879,\n        0.01683501899242401,\n        0.01683501899242401,\n        0.020202020183205605,\n        0.013468016870319843,\n        0.020202020183205605,\n        0.013468016870319843,\n        0.02693602256476879,\n        0.020202020183205605,\n        0.020202020183205605,\n        0.01010101567953825,\n        0.01010101567953825,\n        0.020202020183205605,\n        0.01683501899242401,\n        0.030303025618195534,\n        0.023569021373987198,\n        0.020202020183205605,\n        0.006734013091772795,\n        0.020202020183205605,\n        0.023569021373987198,\n        0.006734013091772795,\n        0.0033670116681605577,\n        0.0033670116681605577,\n        0.0033670116681605577,\n        0.01683501899242401,\n        0.013468016870319843,\n        0.020202020183205605,\n        0.0033670116681605577,\n        0.01683501899242401,\n        0.0033670116681605577,\n        0.006734013091772795,\n        0.013468016870319843,\n        0.013468016870319843,\n        0.01683501899242401,\n        0.01010101567953825,\n        0.013468016870319843,\n        0.0033670116681605577,\n        0.0033670116681605577,\n        0.0033670116681605577,\n        0.0033670116681605577,\n        0.01683501899242401,\n        0.01010101567953825,\n        0.0033670116681605577,\n        9.999995498333192e-09,\n        0.006734013091772795,\n        0.006734013091772795,\n        0.01010101567953825,\n        9.999995498333192e-09,\n        0.0033670116681605577,\n        9.999995498333192e-09,\n        9.999995498333192e-09,\n        9.999995498333192e-09,\n        0.006734013091772795,\n        0.020202020183205605,\n    ]\n)\n\nq = np.array(\n    [\n        0.033191852271556854,\n        0.05103962495923042,\n        0.047990016639232635,\n        0.041323471814394,\n        0.03984157741069794,\n        0.04083874821662903,\n        0.03945406898856163,\n        0.03845580294728279,\n        0.034923579543828964,\n        0.03307703137397766,\n        0.03295315057039261,\n        0.0323001965880394,\n        0.031335968524217606,\n        0.030173348262906075,\n        0.029619738459587097,\n        0.02916717156767845,\n        0.02812288887798786,\n        0.028896357864141464,\n        0.02731262892484665,\n        0.026992078870534897,\n        0.025729067623615265,\n        0.025560997426509857,\n        0.023356277495622635,\n        0.022910216823220253,\n        0.021233361214399338,\n        0.020073287189006805,\n        0.01896752417087555,\n        0.017730288207530975,\n        0.015907960012555122,\n        0.014340247958898544,\n        0.013263787142932415,\n        0.011797870509326458,\n        0.0110426414757967,\n        0.009239386767148972,\n        0.007015496026724577,\n        0.007283276412636042,\n        0.005678762216120958,\n        0.004937503486871719,\n        0.004047406371682882,\n        0.0035533313639461994,\n        0.0024100381415337324,\n        0.002472224645316601,\n        0.0018991118995472789,\n        0.0015963023761287332,\n        0.0014262693002820015,\n        0.001139176543802023,\n        0.0010597796645015478,\n        0.0008469783351756632,\n        0.0008181399316526949,\n        0.0005768954870291054,\n        0.0006469341460615396,\n        0.0005363301024772227,\n        0.00045266191591508687,\n        0.0004088705172762275,\n        0.000500031397677958,\n        0.0002535326930228621,\n        0.0003349899488966912,\n        0.00033247924875468016,\n        0.00018231221474707127,\n        0.00027949141804128885,\n        0.00016455166041851044,\n        0.00022954658197704703,\n        0.0002348557027289644,\n        0.0005204440676607192,\n    ]\n)\n\n# normalise (should already sum to 1)\np /= p.sum()\nq /= q.sum()\n\n# 1D supports (bin centres)\nx = np.arange(len(p))\n\n# W1 & W2\nw1 = wasserstein_distance(x, x, p, q)\nw2 = np.sqrt(np.sum(p * np.cumsum(p) * 0))  # placeholder\n\n\n# closed-form 1D W2: sqrt(sum_i p_i * (CDF_p[i]-CDF_q[i])^2 / sum p) but easier: map to sorted list of samples proportional to probs\ndef w2_discrete(p, q, x):\n    # generate samples to approximate; use cdf matching in prob mass quantile\n    cdf_p = np.cumsum(p)\n    cdf_q = np.cumsum(q)\n    # ensure last=1\n    N = 10000\n    u = (np.arange(N) + 0.5) / N\n    xp = np.interp(u, cdf_p, x)\n    xq = np.interp(u, cdf_q, x)\n    return np.sqrt(np.mean((xp - xq) ** 2))\n\n\nw2 = w2_discrete(p, q, x)\n\n# plot histograms\nfig, ax = plt.subplots(1, 2, figsize=(10, 3))\nax[0].bar(x - 0.2, p, width=0.4, label=\"p\")\nax[0].bar(x + 0.2, q, width=0.4, label=\"q\")\nax[0].set_title(\"Distributions\")\nax[0].legend()\n\n# plot CDFs and area\ncdf_p = np.cumsum(p)\ncdf_q = np.cumsum(q)\nax[1].step(x, cdf_p, where=\"post\", label=\"CDF p\")\nax[1].step(x, cdf_q, where=\"post\", label=\"CDF q\")\nax[1].fill_between(x, cdf_p, cdf_q, alpha=0.3)\nax[1].set_title(f\"W1 ≈ {w1:.3f},  W2 ≈ {w2:.3f}\")\nax[1].legend()\n\nplt.tight_layout()\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-133-figure-19.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 133,
+    "image_sha256": "72f5ae213eaae22fe0c2e9f94e4dfdb7e04a9472137b6bb297feec980ff7cc81",
+    "code_sha256": "c1ff9c2e636458155c3a28be8f201b60f340a8bf5d05b0f41a25b0f1b3244805",
+    "code": "x = np.asarray(eval(res.loc[4070, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(res.loc[4070, \"reconstruct\"]), dtype=\"float32\")\nedges = np.arange(10, 335, 5, dtype=\"float32\")\ncenters = edges[:-1] + 2.5\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"rebuilt\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\", ylim=(0, 0.10))\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-134-figure-20.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 134,
+    "image_sha256": "81f0d11ad989884d149fe794976d4edcce0dc1ceb887905d59d96f1b5e496613",
+    "code_sha256": "9461d0bd7da7e625d4d5675aaf3455432491928880b3212a875d9b0bf7cb7f54",
+    "code": "x = np.asarray(eval(res.loc[13, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(res.loc[13, \"reconstruct\"]), dtype=\"float32\")\nedges = np.arange(10, 335, 5, dtype=\"float32\")\ncenters = edges[:-1] + 2.5\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"rebuilt\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\", ylim=(0, 0.10))\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-136-figure-21.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 136,
+    "image_sha256": "76ff878c2aacd667ee875c53ec1aec9853ea36845d2585df914da069e7c70518",
+    "code_sha256": "5bc73dbb17f660ab3104bbbd435e26522ff9fba341f6d8ff56bd2a1a19f72ce8",
+    "code": "z1 = res[\"z\"].apply(lambda x: eval(x)[0])\nz1_pred = res[\"z_pred\"].apply(lambda x: eval(x)[0])\nscatter_plot(z1, z1_pred)"
+  },
+  {
+    "file": "figures/ai-cell-137-figure-22.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 137,
+    "image_sha256": "119b5e4bb0e45c69d40f6be4f3276c9d74285ebf511ff73905921c39b18416f6",
+    "code_sha256": "db9ce6388825ba6903055a28d43b0cc8c69580c3238a7bb1c33188bceb3d3acf",
+    "code": "z2 = res[\"z\"].apply(lambda x: eval(x)[1])\nz2_pred = res[\"z_pred\"].apply(lambda x: eval(x)[1])\nscatter_plot(z2, z2_pred)"
+  },
+  {
+    "file": "figures/ai-cell-142-figure-23.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 142,
+    "image_sha256": "145936826f036088520f5fc39847221a752630c64377c2ce5514eb243affdf6c",
+    "code_sha256": "9df091aa9f7a76750c541bb14847837e55509f72561f5fd0e6b4fd182c33f56c",
+    "code": "x = np.asarray(eval(res.loc[1076, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(res.loc[1076, \"hist_pred\"]), dtype=\"float32\")\nedges = np.arange(10, 335, 5, dtype=\"float32\")\ncenters = edges[:-1] + 2.5\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"rebuilt\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\", ylim=(0, 0.10))\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-143-figure-24.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 143,
+    "image_sha256": "f2060f03791912f157d5f866ef8c1b1d72153002cbcb1ba50d88cdcaf3971286",
+    "code_sha256": "d6638d36d329f9636cc23ab2ed27cc2799ce1c979b7adde3ce05ad0203c66c82",
+    "code": "x = np.asarray(eval(res.loc[75, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(res.loc[75, \"hist_pred\"]), dtype=\"float32\")\nedges = np.arange(10, 335, 5, dtype=\"float32\")\ncenters = edges[:-1] + 2.5\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"rebuilt\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\", ylim=(0, 0.10))\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-159-figure-25.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 159,
+    "image_sha256": "482dfbc58d4d2cb58241733ef07654e9659f2a6f037dc4e913db6609ca848c2c",
+    "code_sha256": "b8e7bc7a5bd31e75d36c95b8fb7ddf2fca457179efbde5287f422055144f5580",
+    "code": "sub = lengths[lengths >= 170]\nprint(len(sub))\nfig, ax = plt.subplots()\nax.hist(sub, bins=100, density=False, histtype=\"step\")\nax.set_xlabel(\"polya_length\")\nax.set_ylabel(\"count\")"
+  },
+  {
+    "file": "figures/ai-cell-168-figure-26.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 168,
+    "image_sha256": "947edc89a5f87eb4349314181835d830be3f0cc44f049ada769c90b36be63350",
+    "code_sha256": "7e54a82476ad3f1a33cecf5f518ca5ac6c826c528952ff49afe133124b57768a",
+    "code": "x = np.asarray(eval(res.loc[289, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(res.loc[289, \"hist_pred\"]), dtype=\"float32\")\nedges = np.arange(10, 210, 20, dtype=\"float32\")\ncenters = edges[:-1] + 10\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"predicted\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\")\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-172-figure-27.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 172,
+    "image_sha256": "932203217342f49e4512a9b0fa64c69cf672bb6cb9cbf54de981bbf2020a3f85",
+    "code_sha256": "ce420a058258a9556afbb5d88bd1953f261e1397d39959f21e93b60afb87b617",
+    "code": "scatter_plot(true_med, pred_med)"
+  },
+  {
+    "file": "figures/ai-cell-175-figure-28.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 175,
+    "image_sha256": "28db825b5912d303e3434a8ae4041035fdafad54422a81bafd213b60a7911b51",
+    "code_sha256": "319b043d70ff9a0a632690f1b3255b3eaf3fa4cb238dc306ff2ef6b1b22dff5c",
+    "code": "x = np.asarray(eval(res_cpm.loc[289, \"polya_ratio\"]), dtype=\"float32\")\nx_hat = np.asarray(eval(res_cpm.loc[289, \"hist_pred\"]), dtype=\"float32\")\nedges = np.arange(10, 210, 20, dtype=\"float32\")\ncenters = edges[:-1] + 10\n\nkl = tf.reduce_sum(x * (tf.math.log(x + 1e-8) - tf.math.log(x_hat + 1e-8))).numpy()\nw2 = np.sqrt(ot.wasserstein_1d(centers, centers, x, x_hat, p=2))\n\nfig, ax = plt.subplots(figsize=(6, 4))\nax.stairs(x, edges, label=\"measured\")\nax.stairs(x_hat, edges, label=\"predicted\")\n\nax.set(xlabel=\"poly(A) length (nt)\", ylabel=\"ratio\")\nax.legend()\nax.text(\n    0.95,\n    0.92,\n    f\"KL={kl:.3f}\\nW₂={w2:.3f}\",\n    transform=ax.transAxes,\n    ha=\"right\",\n    va=\"top\",\n)\n\nplt.show()"
+  },
+  {
+    "file": "figures/ai-cell-179-figure-29.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 179,
+    "image_sha256": "f2f18b50f1e8661165802e2409a9931e1335507abec86054125b0beb30027e7d",
+    "code_sha256": "ce420a058258a9556afbb5d88bd1953f261e1397d39959f21e93b60afb87b617",
+    "code": "scatter_plot(true_med, pred_med)"
+  },
+  {
+    "file": "figures/ai-cell-212-figure-30.png",
+    "notebook": "ai.ipynb",
+    "source_cell": 212,
+    "image_sha256": "44489415ba29886665e896dac307105b3b8e48bfa954d07416682a8386f21c3c",
+    "code_sha256": "5e0d101e7fa99a9489045b24eeee449d53cb303e49b77f7119f3d627dd1b78ee",
+    "code": "scatter_plot(measured, pred)"
+  },
+  {
+    "file": "figures/ai_polyA-cell-026-figure-01.png",
+    "notebook": "ai_polyA.ipynb",
+    "source_cell": 26,
+    "image_sha256": "22263e97d2b61549872730465006ae63797608e5a9d6b95515b45b1fd6673580",
+    "code_sha256": "94452f37aaf55f81d9f7dbb1584d06735dded3112840dbcee33a2ed8ac747b77",
+    "code": "import matplotlib.pyplot as plt\n\n# 创建一个横向排列的图像窗口 (1 行, 2 列)\nfig, axes = plt.subplots(1, 2, figsize=(6, 3))  # figsize 调整宽度\n\n# 随机森林模型的散点图\naxes[0].scatter(y_test, y_pred, alpha=0.5, s=2)\naxes[0].set_xlabel(\"True Poly(A) Length\")\naxes[0].set_ylabel(\"Predicted Poly(A) Length\")\naxes[0].set_title(\"Random Forest\")\n# 标注 Pearson 相关系数 & MAE\naxes[0].text(0.5, 0.1, f\"cor = {cor_rf:.2f}\", transform=axes[0].transAxes, fontsize=10)\naxes[0].text(0.5, 0.2, f\"MAE = {mae_rf:.2f}\", transform=axes[0].transAxes, fontsize=10)\n\n# 神经网络模型的散点图\naxes[1].scatter(y_test, y_pred_nn, alpha=0.5, s=2, color=\"red\")\naxes[1].set_xlabel(\"True Poly(A) Length\")\naxes[1].set_ylabel(\"Predicted Poly(A) Length\")\naxes[1].set_title(\"Neural Network\")\n# 标注 Pearson 相关系数 & MAE\naxes[1].text(0.5, 0.1, f\"cor = {cor_nn:.2f}\", transform=axes[1].transAxes, fontsize=10)\naxes[1].text(0.5, 0.2, f\"MAE = {mae_nn:.2f}\", transform=axes[1].transAxes, fontsize=10)\n\n# 调整布局，防止标题重叠\nplt.tight_layout()\n\n# 显示图像\nplt.show()"
+  },
+  {
+    "file": "figures/ai_polyA-cell-033-figure-02.png",
+    "notebook": "ai_polyA.ipynb",
+    "source_cell": 33,
+    "image_sha256": "85ad1388c06eae30f9371b9c945b1ffe9fe49f433cae8f7ded3e54d61758442f",
+    "code_sha256": "02a0910d9f31abd2ef5e62db57c5265beb5ba5d284cf7d165b8398bf59514e21",
+    "code": "# 计算 Pearson 相关系数\ncor_rf, _ = pearsonr(y_test, y_pred)  # 随机森林相关系数\ncor_nn, _ = pearsonr(y_test, y_pred_nn)  # 神经网络相关系数\n\n# 计算 MAE\nmae_rf = mean_absolute_error(y_test, y_pred)  # 随机森林 MAE\nmae_nn = mean_absolute_error(y_test, y_pred_nn)  # 神经网络 MAE\nimport matplotlib.pyplot as plt\n\n# 创建一个横向排列的图像窗口 (1 行, 2 列)\nfig, axes = plt.subplots(1, 2, figsize=(6, 3))  # figsize 调整宽度\n\n# 随机森林模型的散点图\naxes[0].scatter(y_test, y_pred, alpha=0.5, s=2)\naxes[0].set_xlim(0, 200)\naxes[0].set_ylim(0, 200)\naxes[0].set_xlabel(\"True Poly(A) Length\")\naxes[0].set_ylabel(\"Predicted Poly(A) Length\")\naxes[0].set_title(\"Random Forest\")\n# 标注 Pearson 相关系数 & MAE\naxes[0].text(0.5, 0.1, f\"cor = {cor_rf:.2f}\", transform=axes[0].transAxes, fontsize=10)\naxes[0].text(0.5, 0.2, f\"MAE = {mae_rf:.2f}\", transform=axes[0].transAxes, fontsize=10)\n\n# 神经网络模型的散点图\naxes[1].scatter(y_test, y_pred_nn, alpha=0.5, s=2, color=\"red\")\naxes[1].set_xlim(0, 200)\naxes[1].set_ylim(0, 200)\naxes[1].set_xlabel(\"True Poly(A) Length\")\naxes[1].set_ylabel(\"Predicted Poly(A) Length\")\naxes[1].set_title(\"Neural Network\")\n# 标注 Pearson 相关系数 & MAE\naxes[1].text(0.5, 0.1, f\"cor = {cor_nn:.2f}\", transform=axes[1].transAxes, fontsize=10)\naxes[1].text(0.5, 0.2, f\"MAE = {mae_nn:.2f}\", transform=axes[1].transAxes, fontsize=10)\n\n# 调整布局，防止标题重叠\nplt.tight_layout()\n\n# 显示图像\nplt.show()"
+  },
+  {
+    "file": "figures/ai_polyA-cell-034-figure-03.png",
+    "notebook": "ai_polyA.ipynb",
+    "source_cell": 34,
+    "image_sha256": "bac2992612cb3eff31ce2cf967a5f3231a3aaf426dae51cf0ece540b885179ae",
+    "code_sha256": "c324a86b6cba9409b8f0fd1c02ad9f63170845edf6f3b827131e8fb724f46957",
+    "code": "# 计算 Pearson 相关系数\ncor_rf, _ = pearsonr(y_test, y_pred)  # 随机森林相关系数\ncor_nn, _ = pearsonr(y_test, y_pred_nn)  # 神经网络相关系数\n\n# 计算 MAE\nmae_rf = mean_absolute_error(y_test, y_pred)  # 随机森林 MAE\nmae_nn = mean_absolute_error(y_test, y_pred_nn)  # 神经网络 MAE\nimport matplotlib.pyplot as plt\n\n# 创建一个横向排列的图像窗口 (1 行, 2 列)\nfig, axes = plt.subplots(1, 2, figsize=(6, 3))  # figsize 调整宽度\n\n# 随机森林模型的散点图\naxes[0].scatter(y_test, y_pred, alpha=0.5, s=2)\naxes[0].set_xlim(0, 200)\naxes[0].set_ylim(0, 120)\naxes[0].set_xlabel(\"True Poly(A) Length\")\naxes[0].set_ylabel(\"Predicted Poly(A) Length\")\naxes[0].set_title(\"Random Forest\")\n# 标注 Pearson 相关系数 & MAE\naxes[0].text(0.5, 0.1, f\"cor = {cor_rf:.2f}\", transform=axes[0].transAxes, fontsize=10)\naxes[0].text(0.5, 0.2, f\"MAE = {mae_rf:.2f}\", transform=axes[0].transAxes, fontsize=10)\n\n# 神经网络模型的散点图\naxes[1].scatter(y_test, y_pred_nn, alpha=0.5, s=2, color=\"red\")\naxes[1].set_xlim(0, 200)\naxes[1].set_ylim(0, 200)\naxes[1].set_xlabel(\"True Poly(A) Length\")\naxes[1].set_ylabel(\"Predicted Poly(A) Length\")\naxes[1].set_title(\"Neural Network\")\n# 标注 Pearson 相关系数 & MAE\naxes[1].text(0.5, 0.1, f\"cor = {cor_nn:.2f}\", transform=axes[1].transAxes, fontsize=10)\naxes[1].text(0.5, 0.2, f\"MAE = {mae_nn:.2f}\", transform=axes[1].transAxes, fontsize=10)\n\n# 调整布局，防止标题重叠\nplt.tight_layout()\n\n# 显示图像\nplt.show()"
+  },
+  {
+    "file": "figures/ai_polyA-cell-039-figure-04.png",
+    "notebook": "ai_polyA.ipynb",
+    "source_cell": 39,
+    "image_sha256": "2b99267d0143e9c8efa6bf91838dc0b3e89438f44b7808befc08e2e7e16abd0d",
+    "code_sha256": "8afb4690a5174270a4cb32497bcd8d0cb1fdf24d47f05ac9de830a4943f39ba3",
+    "code": "seq_lengths = df[\"Sequence\"].apply(len)\nprint(seq_lengths.describe())\nplt.figure(figsize=(10, 6))\nplt.hist(seq_lengths, bins=200)\nplt.xlabel(\"Sequence Length\")\nplt.ylabel(\"Count\")\nplt.title(\"Sequence Length Distribution\")\nplt.xlim(0, 50000)\nplt.show()"
+  }
+]
